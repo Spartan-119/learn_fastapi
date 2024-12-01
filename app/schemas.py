@@ -8,7 +8,7 @@ class UserBase(BaseModel):
     username: str
     email: str
 
-class UserCreate(BaseModel):
+class UserCreate(UserBase):
     password: str
 
 class UserOut(UserBase):
@@ -24,3 +24,22 @@ class PostBase(BaseModel):
 
 class PostCreate(PostBase):
     pass
+
+class PostOut(PostBase):
+    id: int
+    created_at: datetime
+    author: UserOut
+
+class CommentBase(BaseModel):
+    content: str
+
+class CommentCreate(CommentBase):
+    pass
+
+class CommentOut(CommentBase):
+    id: int
+    created_at: datetime
+    author: UserOut
+
+    class Config:
+        orm_mode = True
