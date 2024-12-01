@@ -1,0 +1,26 @@
+# here i will use pydantic for data validation
+
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List, Optional
+
+class UserBase(BaseModel):
+    username: str
+    email: str
+
+class UserCreate(BaseModel):
+    password: str
+
+class UserOut(UserBase):
+    id: int
+    is_admin: bool
+    
+    class Config:
+        orm_mode = True
+
+class PostBase(BaseModel):
+    title: str
+    content: str
+
+class PostCreate(PostBase):
+    pass
