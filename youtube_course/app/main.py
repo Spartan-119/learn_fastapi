@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from random import randrange
@@ -7,10 +7,16 @@ from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from sqlalchemy.orm import Session
+
 import os
 import dotenv
-
 import time
+
+from . import models
+from .database import engine, SessionLocal, get_db
+
+models.Base.metadata.create_all(bind = engine)
 
 dotenv.load_dotenv()
 
@@ -18,8 +24,6 @@ POSTGRESQL_HOST = os.getenv("POSTGRESQL_HOST")
 POSTGRESQL_DATABASE = os.getenv("POSTGRESQL_DATABASE")
 POSTGRESQL_USER = os.getenv("POSTGRESQL_USER")
 POSTGRESQL_PASSWORD = os.getenv("POSTGRESQL_PASSWORD")
-
-
 
 app = FastAPI()
 
@@ -59,26 +63,32 @@ def root():
     return {"message": "hello world"}
 
 @app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM posts""")
-    posts = cursor.fetchall()
-    print(posts)
+def get_posts(db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM posts""")
+    # posts = cursor.fetchall()
+    # print(posts)
+    posts = db.query(models.Post).all()
     return {"data": posts}
 
 @app.post("/createposts", status_code = status.HTTP_201_CREATED)
-def create_posts(post: Post):
-    cursor.execute("""INSERT INTO posts(title, content, published) VALUES (%s, %s, %s) RETURNING *""",
-                   (post.title, post.content, post.published))
-    new_post = cursor.fetchone()
+def create_posts(post: Post, db: Session = Depends(get_db)):
+    # cursor.execute("""INSERT INTO posts(title, content, published) VALUES (%s, %s, %s) RETURNING *""",
+    #                (post.title, post.content, post.published))
+    # new_post = cursor.fetchone()
 
-    conn.commit() # be sure to add this to actually make changes to the database
+    # conn.commit() # be sure to add this to actually make changes to the database
+
+    new_post = models.Post(**post.model_dump())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
 
     return {"data": new_post}
 
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
-    post = cursor.fetchone()
+def get_post(id: int, response: Response, db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
+    # post = cursor.fetchone()
     # post = find_post(id)
     # doing a quick check
     if not post:
@@ -112,3 +122,8 @@ def update_post(id: int, post: Post):
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = f"post with id:{id} does not exist")
     
     return {"data": updated_post}
+
+@app.get("/sqlalchemy")
+def test_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return {"data": posts}
